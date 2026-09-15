@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
-<title>shadow</title>
+<title>CVE-X</title>
 <meta name="description" content="page personnelle">
 <link rel="icon" href="assets/avatar.jpg">
 
@@ -206,7 +206,7 @@ html,body{
 .player-actions {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.4rem;
 }
 .control-btn {
   background: transparent;
@@ -234,6 +234,7 @@ html,body{
   display: flex;
   align-items: center;
   gap: 4px;
+  margin-left: 2px;
 }
 .volume-wrap svg {
   width: 13px;
@@ -241,7 +242,7 @@ html,body{
   fill: var(--text-muted);
 }
 #volume-slider {
-  width: 60px;
+  width: 50px;
   height: 4px;
   appearance: none;
   background: rgba(255,255,255,0.15);
@@ -340,8 +341,14 @@ html,body{
     <div class="player-controls">
       <p id="time"></p>
       <div class="player-actions">
+        <button id="prev-btn" class="control-btn" title="Précédent">
+          <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+        </button>
         <button id="play-pause-btn" class="control-btn" title="Play/Pause">
           <svg id="play-pause-icon" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+        </button>
+        <button id="next-btn" class="control-btn" title="Suivant">
+          <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
         </button>
         <div class="volume-wrap">
           <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
@@ -356,35 +363,46 @@ html,body{
   <div id="buttons"></div>
 </main>
 
-<audio id="audio" loop></audio>
+<audio id="audio"></audio>
 
 <script>
 const CONFIG = {
   profile: {
     name: "CVE-X",
     bio: "",  
-    avatar: "assets/avatar.jpg",           
+    avatar: "assets/avatar.jpg",            
   },
   background: {
-    lightning: true,   
+    lightning: true,    
   },
   theme: {
-    accent: "#ffffff", 
+    accent: "#ffffff",  
   },
   views: {
     enabled: true,
-    mode: "manual",            
-    manualCount: 543,       
-    namespace: "cve-x-page-dev", 
+    initialViews: 543,       
+    increment: 2,            
+    intervalDays: 3          
   },
   music: {
     enabled: true,
-    src: "assets/song.mp3",      
-    cover: "assets/cover.jpg",   
-    title: "No More Excuses",
-    artist: "Topic",
     autoplay: true,
-    loop: true,
+    playlist: [
+      {
+        title: "No More Excuses",
+        artist: "Topic",
+        album: "Album 1",
+        src: "assets/song.mp3",
+        cover: "assets/cover.jpg"
+      },
+      {
+        title: "Nom de la musique 2",
+        artist: "Artiste 2",
+        album: "Album 2",
+        src: "assets/song2.mp3",
+        cover: "assets/cover2.jpg"
+      }
+    ]
   },
   links: [
     { url: "https://github.com/CVE-h", icon: "github" },
@@ -420,6 +438,20 @@ const CONFIG = {
     return `${m}:${s}`;
   }
 
+  let currentTrackIndex = 0;
+
+  function loadTrack(index) {
+    if (!CONFIG.music.enabled || !CONFIG.music.playlist.length) return;
+    const track = CONFIG.music.playlist[index];
+    const audio = $("#audio");
+
+    $("#cover").src = track.cover || CONFIG.profile.avatar;
+    $("#track-title").textContent = track.title;
+    $("#track-artist").textContent = "by " + track.artist;
+    $("#track-album").textContent = track.album ? "on " + track.album : "";
+    audio.src = track.src;
+  }
+
   function applyProfile() {
     document.title = CONFIG.profile.name;
     $("#avatar").src = CONFIG.profile.avatar;
@@ -443,13 +475,8 @@ const CONFIG = {
       linksEl.appendChild(a);
     });
 
-    if (CONFIG.music.enabled) {
-      $("#cover").src = CONFIG.music.cover || CONFIG.profile.avatar;
-      $("#track-title").textContent = CONFIG.music.title;
-      $("#track-artist").textContent = "by " + CONFIG.music.artist;
-      $("#track-album").textContent = "on " + CONFIG.music.album;
-      $("#audio").src = CONFIG.music.src;
-      $("#audio").loop = CONFIG.music.loop;
+    if (CONFIG.music.enabled && CONFIG.music.playlist.length > 0) {
+      loadTrack(currentTrackIndex);
     } else {
       $("#player").style.display = "none";
       $(".progress-wrap").style.display = "none";
@@ -486,6 +513,8 @@ const CONFIG = {
     const time = $("#time");
     const playPauseBtn = $("#play-pause-btn");
     const playPauseIcon = $("#play-pause-icon");
+    const nextBtn = $("#next-btn");
+    const prevBtn = $("#prev-btn");
     const volumeSlider = $("#volume-slider");
 
     audio.addEventListener("timeupdate", () => {
@@ -495,6 +524,24 @@ const CONFIG = {
     });
     audio.addEventListener("loadedmetadata", () => {
       time.textContent = `${fmtTime(audio.currentTime)} / ${fmtTime(audio.duration)}`;
+    });
+
+    audio.addEventListener("ended", () => {
+      currentTrackIndex = (currentTrackIndex + 1) % CONFIG.music.playlist.length;
+      loadTrack(currentTrackIndex);
+      audio.play().catch(() => {});
+    });
+
+    nextBtn.addEventListener("click", () => {
+      currentTrackIndex = (currentTrackIndex + 1) % CONFIG.music.playlist.length;
+      loadTrack(currentTrackIndex);
+      audio.play().catch(() => {});
+    });
+
+    prevBtn.addEventListener("click", () => {
+      currentTrackIndex = (currentTrackIndex - 1 + CONFIG.music.playlist.length) % CONFIG.music.playlist.length;
+      loadTrack(currentTrackIndex);
+      audio.play().catch(() => {});
     });
 
     bar.addEventListener("click", (e) => {
@@ -528,21 +575,41 @@ const CONFIG = {
     });
   }
 
-  async function setupViews() {
-    if (!CONFIG.views.enabled) { $("#views").parentElement.style.display = "none"; return; }
-    const el = $("#views");
-    if (CONFIG.views.mode === "manual") {
-      el.textContent = CONFIG.views.manualCount.toLocaleString("fr-FR");
+  function setupViews() {
+    const viewsEl = $("#views");
+    if (!CONFIG.views || !CONFIG.views.enabled) {
+      viewsEl.parentElement.style.display = "none";
       return;
     }
-    el.textContent = "…";
-    try {
-      const res = await fetch(`https://abacus.jasoncameron.dev/hit/${encodeURIComponent(CONFIG.views.namespace)}/visits`);
-      const data = await res.json();
-      el.textContent = data.value.toLocaleString("fr-FR");
-    } catch (e) {
-      el.textContent = "";
+
+    const cfg = CONFIG.views;
+    const STORAGE_KEY_VIEWS = "cve_site_views";
+    const STORAGE_KEY_TIME = "cve_last_view_update";
+
+    let currentViews = parseInt(localStorage.getItem(STORAGE_KEY_VIEWS), 10);
+    let lastUpdate = parseInt(localStorage.getItem(STORAGE_KEY_TIME), 10);
+
+    const now = Date.now();
+    const intervalMs = cfg.intervalDays * 24 * 60 * 60 * 1000;
+
+    if (isNaN(currentViews)) {
+      currentViews = cfg.initialViews;
+      localStorage.setItem(STORAGE_KEY_VIEWS, currentViews);
+      localStorage.setItem(STORAGE_KEY_TIME, now);
+    } else {
+      // Vérifie si le délai est passé, même si personne n'est venu
+      if (isNaN(lastUpdate)) lastUpdate = now;
+      
+      const elapsed = now - lastUpdate;
+      if (elapsed >= intervalMs) {
+        const periodsPassed = Math.floor(elapsed / intervalMs);
+        currentViews += periodsPassed * cfg.increment;
+        localStorage.setItem(STORAGE_KEY_VIEWS, currentViews);
+        localStorage.setItem(STORAGE_KEY_TIME, lastUpdate + (periodsPassed * intervalMs));
+      }
     }
+
+    viewsEl.textContent = currentViews.toLocaleString("fr-FR");
   }
 
   function setupGate() {
